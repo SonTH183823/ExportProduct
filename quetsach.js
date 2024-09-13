@@ -17,12 +17,14 @@ function getInfoMatch(e) {
     const item = getTextEBClass(e, 'match-item', 0, false)
     const boType = getTextEBClass(item, 'BO')
     const nameMatch = getTextEBClass(item, 'tournament_name').replaceAll('\n        ', ' ')
-    const date = getTextEBClass(item, 'start_time years')
+    const date = getTextEBClass(item, 'start_time years DIN')
     const team1 = getTextEBClass(item, 'item-name')
     const team2 = getTextEBClass(item, 'item-name', 1)
     return { boType, nameMatch, date, team1, team2 }
 }
-
+function hasChildWithClass(parentDiv, childClass) {
+    return parentDiv.querySelector(`.${childClass}`) !== null;
+}
 
 function getAllKeo(oneLine) {
     const allKeos = document.getElementsByClassName('list-item-page')
@@ -34,26 +36,22 @@ function getAllKeo(oneLine) {
         const items = allKeos[a].getElementsByClassName('list-item')
         for (let b = 0; b < items.length; b++) {
             const keo = getTextEBClass(items[b], 'status-title')
-            const containL = items[b].getElementsByClassName('contain-left')[0]
-            const containR = items[b].getElementsByClassName('contain-right')
-            const listContainInL = containL.getElementsByClassName('contain')
-            let listContainInR
-            let hasRight = false
-            if(containR && containR.length) {
-                hasRight = true
-                listContainInR = containR[0].getElementsByClassName('contain')
-            }
-            for (let c = 0; c < listContainInL.length; c++) {
-                const team1keo = getTextEBClass(listContainInL[c], 'item-name') ? getTextEBClass(listContainInL[c], 'item-name') : getTextEBClass(listContainInL[c], 'item_name')
-                const rate1 = getTextEBClass(listContainInL[c], 'odds DIN normal')
-                const rate2 = hasRight ? getTextEBClass(listContainInR[c], 'odds DIN normal') : ''
-                const team2keo = hasRight ? getTextEBClass(listContainInR[c], 'item-name') ? getTextEBClass(listContainInR[c], 'item-name') : getTextEBClass(listContainInR[c], 'item_name') ? getTextEBClass(listContainInR[c], 'item_name') : '' : ''
-                const ol = [...oneLine, game, keo, team1keo.replace('-', ':'), rate1, rate2, team2keo.replace('-', ':')]
-                dataCsv.push(ol)
-                console.log('Kêt quả', keo, team1keo, rate1, rate2, team2keo);
+            if (hasChildWithClass(items[b], 'contain-left') && hasChildWithClass(items[b], 'contain-right')) {
+                const containL = items[b].getElementsByClassName('contain-left')[0]
+                const containR = items[b].getElementsByClassName('contain-right')[0]
+                let listContainInL = containL.getElementsByClassName('contain')
+                let listContainInR = containR.getElementsByClassName('contain')
+                for (let c = 0; c < listContainInL.length; c++) {
+                    const team1keo = getTextEBClass(listContainInL[c], 'item-name') ? getTextEBClass(listContainInL[c], 'item-name') : getTextEBClass(listContainInL[c], 'item_name')
+                    const rate1 = getTextEBClass(listContainInL[c], 'odds DIN normal')
+                    const rate2 = getTextEBClass(listContainInR[c], 'odds DIN normal')
+                    const team2keo = getTextEBClass(listContainInR[c], 'item-name') ? getTextEBClass(listContainInR[c], 'item-name') : getTextEBClass(listContainInR[c], 'item_name') ? getTextEBClass(listContainInR[c], 'item_name') : '' 
+                    const ol = [...oneLine, game, keo, team1keo.replace('-', ':'), rate1, rate2, team2keo.replace('-', ':')]
+                    dataCsv.push(ol)
+                    console.log('Kêt quả', keo, team1keo, rate1, rate2, team2keo);
+                }
             }
         }
-
     }
 }
 
@@ -71,8 +69,8 @@ function downloadCSV(csvData) {
 
 async function pauseExecution() {
     console.log("Start");
-    await sleep(1000);
     const allMatch = document.getElementsByClassName('match-item-box')
+    await sleep(1000);
     for (let i = 0; i < allMatch.length; i++) {
         const element = allMatch[i]
         element.click()
@@ -80,15 +78,19 @@ async function pauseExecution() {
         const { boType, nameMatch, date, team1, team2 } = getInfoMatch(element)
         const oneLine = [boType, nameMatch, team1, team2, date]
         await sleep(1000)
+        if (!date) continue //TH live
         const allGames = document.getElementsByClassName('el-tabs__item is-top')
         for (let j = 0; j < allGames.length; j++) {
             const label = allGames[j].textContent.trim()
             if (label.includes('Cả trận') || label.includes('Ván')) {
                 game = label
-                allGames[j].click()
+                if(label.includes('Ván')) {
+                    allGames[j].click()
+                }
                 allGames[j].style.background = 'red'
-                await sleep(1000);
+                await sleep(1500);
                 getAllKeo(oneLine)
+                allGames[j].style.background = 'none'
             }
         }
         await sleep(1000);
